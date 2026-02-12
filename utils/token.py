@@ -15,19 +15,20 @@ def generate_jwt_token(user_id: int)->str:
     return token
 
 
-# 获取当前用户ID的依赖函数
-def get_current_user_id(authorization: str = Header(...)) -> int:
+# 获取当前用户ID和role的依赖函数
+def get_current_user_info(authorization: str = Header(...)):
     if not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Token格式错误")
     token = authorization[7:].strip()
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
         user_id = payload.get("user_id")
+        role = payload.get("role")
         exp = payload.get("exp")
         if user_id is None or exp is None:
             raise HTTPException(status_code=401, detail="Token无效")
         if time.time() > exp:
             raise HTTPException(status_code=401, detail="Token已过期")
-        return user_id
+        return {"user_id": user_id, "role": role}
     except jwt.PyJWTError as e:
         raise HTTPException(status_code=401, detail="Token解析失败")

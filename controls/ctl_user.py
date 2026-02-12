@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from models.playlist import Playlist
-from utils.token import generate_jwt_token, get_current_user_id
+from utils.token import generate_jwt_token, get_current_user_info
 from db.db_server import DataBaseServer
 from models.user import User, UserIn
 import hashlib
@@ -20,7 +20,8 @@ def register_user(user_in: UserIn):
     user_in_hash.update(user_in.password.encode('utf-8'))
     new_user = User(
         username=user_in.username,
-        password_hash=user_in_hash.hexdigest()
+        password_hash=user_in_hash.hexdigest(),
+        role=user_in.role
     )
     session.add(new_user)
     session.commit()
@@ -49,35 +50,41 @@ def login_user(user_in: UserIn):
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-#查看所有用户基本信息，用户名和用户ID（权限：管理员，后续做权限验证）
+#查看所有用户基本信息，用户名和用户ID（权限：管理员）
 @user_router.post("/view_all_user")
-def view_all_user():
+def view_all_user(current_user_info: dict = Depends(get_current_user_info)):
+    if current_user_info["role"] != "admin":
+        raise HTTPException(status_code=403, detail="无权限查看所有用户信息")
     users = session.query(User).all()
     return {"users": [{"id": user.id, "username": user.username} for user in users]}
 
 
-#查看某位用户详细信息（权限：用户本人或管理员，后续做权限验证）
+#查看某位用户详细信息（权限：用户本人或管理员）
 @user_router.post("/view_single_user/{user_id}")
 def view_single_user(user_id: int,
-                     current_user_id: int = Depends(get_current_user_id)):
+                     current_user_info: dict = Depends(get_current_user_info)):
     user = session.query(User).filter_by(id=user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="用户不存在")
-    if str(user.id) != str(current_user_id):
+    if str(user.id) != str(current_user_info["user_id"]) and current_user_info["role"] != "admin":
         raise HTTPException(status_code=403, detail="无权限查看该用户信息")
     return {"user": user}
 
 
-#修改用户信息（权限：用户本人或管理员，后续做权限验证）
+#修改用户信息（权限：用户本人或管理员）
 @user_router.post("/update_user/{user_id}")
 def update_user(user_id: int, 
                 user_in: UserIn,
-                current_user_id: int = Depends(get_current_user_id)):
+                current_user_info: dict = Depends(get_current_user_info)):
     user = session.query(User).filter_by(id=user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="用户不存在")
-    if str(user.id) != str(current_user_id):
+    if str(user.id) != str(current_user_info["user_id"]) and current_user_info["role"] != "admin":
         raise HTTPException(status_code=403, detail="无权限修改该用户信息")
+    
+    #TODO:应该做更细粒度的权限控制，允许用户单独修改用户名或密码，
+    # 而不是必须同时修改用户名和密码，目前做法是如果用户不想修改某项信息则在请求体中传入原信息即可
+
     #改用户名
     user.username = user_in.username
     #改密码
@@ -87,15 +94,15 @@ def update_user(user_id: int,
     session.commit()
     return {"message": "用户信息更新成功"}
 
-#注销用户（权限：用户本人或管理员，后续做权限验证）
+#注销用户（权限：用户本人或管理员）
 #TODO：或可做自主选择是否将歌单一并删除，目前做法是删除用户时会删除该用户创建的所有歌单
 @user_router.post("/delete_user/{user_id}")
 def delete_user(user_id: int, 
-                current_user_id: int = Depends(get_current_user_id)):
+                current_user_info: dict = Depends(get_current_user_info)):
     user = session.query(User).filter_by(id=user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="用户不存在")
-    if str(user.id) != str(current_user_id):
+    if str(user.id) != str(current_user_info["user_id"]) and current_user_info["role"] != "admin":
         raise HTTPException(status_code=403, detail="无权限删除该用户")
     #验证通过后可再获取该用户的所有歌单并删除
     playlists = session.query(Playlist).filter_by(playlist_creater=user_id).all()
