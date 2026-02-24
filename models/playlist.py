@@ -10,16 +10,24 @@ class Playlist(MusicBase,TimestampMixin, SoftDeleteMixin):
     id = Column(Integer, primary_key=True, autoincrement=True)
     playlist_name: str = Column(String(255))
     playlist_creater: str = Column(String(255))
+    playlist_introduction: Optional[str] = Column(String(255), default="")
+    playlist_cover_url: Optional[str] = Column(String(255), default="")
+    playlist_cllect_num: int = Column(Integer, default=0)
 
-#TODO 这里歌单输入 信息需要补充更多字段，比如描述、封面等
+    
 class PlaylistIn(BaseModel):
     playlist_name: str
+    playlist_introduction: Optional[str] = ""
+    playlist_cover_url: Optional[str] = ""
 
 
 class PlaylistOut(BaseModel):
     id: int
     playlist_name: str
     playlist_creater: str
+    playlist_cllect_num: Optional[int] = 0
+    playlist_introduction: Optional[str] = ""
+    playlist_cover_url: Optional[str] = ""
     create_time: datetime
     update_time: datetime
     delete_time: Optional[datetime] = None

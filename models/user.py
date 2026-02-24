@@ -11,6 +11,7 @@ class User(MusicBase, TimestampMixin, SoftDeleteMixin):
     username: str = Column(String(255))
     password_hash: str = Column(String(255))
     role: str = Column(String(50), default="user")  # 用户角色，默认为普通用户
+    collected_playlists: str = Column(String(255), default="")  # 收藏的歌单ID列表，逗号分隔
 
 
 class UserIn(BaseModel):
@@ -24,6 +25,7 @@ class UserOut(BaseModel):
     user_name: str
     password: str
     role: str
+    collected_playlists: str
     create_time: datetime
     update_time: datetime
     delete_time: Optional[datetime] = None
