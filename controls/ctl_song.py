@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from models.playlist import Playlist
 from utils.token import get_current_user_info
 from db.db_server import DataBaseServer
 from models.song import Song, SongIn
@@ -43,7 +44,10 @@ def delete_song(song_id: int, current_user_info: dict = Depends(get_current_user
 
 #修改歌曲信息（权限：管理员）
 @song_router.post("/update/{song_id}")
-def update_song(song_id: int, song: SongIn, current_user_info: dict = Depends(get_current_user_info)):
+def update_song(song_id: int, 
+                song: SongIn, 
+                current_user_info: dict = Depends(get_current_user_info)
+                ):
     if current_user_info["role"] != "admin":
         raise HTTPException(status_code=403, detail="无权限修改歌曲信息")
     song_to_update = session.query(Song).filter_by(id=song_id).first()
@@ -87,3 +91,48 @@ def view_single_song(song_id: int):
                      "cover_url": song.song_cover_url,
                      "url": song.song_url
                      }}
+
+
+#添加歌曲到歌单（权限：歌单创建者或管理员）
+@song_router.post("/add_to_playlist/{song_id}/{playlist_id}")
+def add_song_to_playlist(song_id: int,
+                        playlist_id: int, 
+                        current_user_info: dict = Depends(get_current_user_info)
+                        ):
+    song = session.query(Song).filter_by(id=song_id).first()
+    if not song:
+        raise HTTPException(status_code=404, detail="歌曲不存在")
+    playlist = session.query(Playlist).filter_by(id=playlist_id).first()
+    if not playlist:
+        raise HTTPException(status_code=404, detail="歌单不存在")
+    if str(playlist.playlist_creater) != str(current_user_info["user_id"]) and current_user_info["role"] != "admin":
+        raise HTTPException(status_code=403, detail="无权限添加歌曲到该歌单")
+    if song in playlist.songs:
+        raise HTTPException(status_code=400, detail="该歌曲已在歌单中")
+    playlist.songs.append(song)
+    session.commit()
+    return {"message": "歌曲添加到歌单成功", 
+            "playlist_id": playlist.id, 
+            "song_id": song.id,
+            "current_songs_count": len(playlist.songs)}
+
+
+#将歌曲从歌单中删除（权限：歌单创建者或管理员）
+@song_router.post("/delete_from_playlist/{song_id}/{playlist_id}")
+def delete_song_from_playlist(song_id: int,
+                                playlist_id: int, 
+                                current_user_info: dict = Depends(get_current_user_info)
+                                ):
+    song = session.query(Song).filter_by(id=song_id).first()
+    if not song:
+        raise HTTPException(status_code=404, detail="歌曲不存在")
+    playlist = session.query(Playlist).filter_by(id=playlist_id).first()
+    if not playlist:
+        raise HTTPException(status_code=404, detail="歌单不存在")
+    if str(playlist.playlist_creater) != str(current_user_info["user_id"]) and current_user_info["role"] != "admin":
+        raise HTTPException(status_code=403, detail="无权限移除该歌曲从该歌单")
+    if song not in playlist.songs:
+        raise HTTPException(status_code=400, detail="该歌曲不在歌单中")
+    playlist.songs.remove(song)
+    session.commit()
+    return {"message": "歌曲从歌单移除成功", "playlist_id": playlist.id, "song_id": song.id}

@@ -1,8 +1,12 @@
 from typing import Optional
 from datetime import datetime
 from pydantic import BaseModel
+from sqlalchemy.orm import relationship
 from sqlalchemy import Column, Integer, String
+from models.association import playlist_song_association
 from models.base import MusicBase, SoftDeleteMixin, TimestampMixin
+
+
 
 
 class Playlist(MusicBase,TimestampMixin, SoftDeleteMixin):
@@ -13,6 +17,13 @@ class Playlist(MusicBase,TimestampMixin, SoftDeleteMixin):
     playlist_introduction: Optional[str] = Column(String(255), default="")
     playlist_cover_url: Optional[str] = Column(String(255), default="")
     playlist_cllect_num: int = Column(Integer, default=0)
+
+    #定义与Song的多对多关系
+    songs = relationship(
+        "Song",
+        secondary=playlist_song_association, 
+        back_populates="playlists"
+        )
 
     
 class PlaylistIn(BaseModel):
