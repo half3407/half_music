@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from db.db_server import DataBaseServer
 from models.playlist import Playlist, PlaylistIn
+from sqlalchemy.orm import joinedload
 from models.user import User
 from utils.token import get_current_user_info
 
@@ -44,19 +45,31 @@ def get_all_playlists():
 # 查看某个歌单详情（无权限要求）
 @playlist_router.post("/view_single/{playlist_id}")
 def get_playlist(playlist_id: int):
-    playlist = session.query(Playlist).filter_by(id=playlist_id).first()
+    playlist = session.query(Playlist).options(joinedload(Playlist.songs)).filter_by(id=playlist_id).first()
     if not playlist:
         raise HTTPException(status_code=404, detail="歌单不存在")
-    # 返回歌单所有信息
-    return {"playlist": {"id": playlist.id, 
-                         "name": playlist.playlist_name, 
-                         "creater_id": playlist.playlist_creater,
-                          "created_at": playlist.created_at, 
-                          "updated_at": playlist.updated_at,
-                          "collect_num": playlist.playlist_cllect_num,
-                          "introduction": playlist.playlist_introduction,
-                          "cover_url": playlist.playlist_cover_url
-                          }}
+    songs_data = [{
+            "id": song.id,
+            "name": song.song_name,
+            "singer": song.song_singer,
+            "cover_url": song.song_cover_url
+        }
+        for song in playlist.songs  #遍历关系对象
+    ]
+    return {
+        "playlist": {
+            "id": playlist.id,
+            "name": playlist.playlist_name,
+            "creater_id": playlist.playlist_creater,
+            "created_at": playlist.created_at,
+            "updated_at": playlist.updated_at,
+            "collect_num": playlist.playlist_cllect_num,
+            "introduction": playlist.playlist_introduction,
+            "cover_url": playlist.playlist_cover_url,
+            "songs": songs_data,  #添加歌曲列表
+            "songs_count": len(songs_data)
+        }
+    }
 
 #收藏歌单（权限：普通用户）
 @playlist_router.post("/collect/{playlist_id}")

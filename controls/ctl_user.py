@@ -45,18 +45,26 @@ def login_user(user_in: UserIn):
     token_data = {
         "sub": str(judg_user.id), 
         "username": judg_user.username,
+        "role": judg_user.role
     }
-    access_token = generate_jwt_token(judg_user.id)
+    access_token = generate_jwt_token(judg_user.id, judg_user.role)
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-#查看所有用户基本信息，用户名和用户ID（权限：管理员）
+'''#查看所有用户基本信息，用户名和用户ID（权限：管理员）
 @user_router.post("/view_all_user")
 def view_all_user(current_user_info: dict = Depends(get_current_user_info)):
     if current_user_info["role"] != "admin":
         raise HTTPException(status_code=403, detail="无权限查看所有用户信息")
     users = session.query(User).all()
     return {"users": [{"id": user.id, "username": user.username} for user in users]}
+'''
+#查看所有用户基本信息，用户名和用户ID 无权限要求供调试用
+@user_router.post("/view_all_user")
+def view_all_user():
+    users = session.query(User).all()
+    return {"users": [{"id": user.id, "username": user.username, "role": user.role} for user in users]}
+
 
 
 #查看某位用户详细信息（权限：用户本人或管理员）
