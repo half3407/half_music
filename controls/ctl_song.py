@@ -135,4 +135,4 @@ def delete_song_from_playlist(song_id: int,
         raise HTTPException(status_code=400, detail="该歌曲不在歌单中")
     playlist.songs.remove(song)
     session.commit()
-    return {"message": "歌曲从歌单移除成功", "playlist_id": playlist.id, "song_id": song.id}
+    return {"message": "歌曲从歌单移除成功", "playlist_id": playlist.id, "song_id": song.id}    

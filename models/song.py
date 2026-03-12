@@ -3,7 +3,6 @@ from datetime import datetime
 from pydantic import BaseModel
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import Column, ForeignKey, Integer, String
-from models.association import playlist_song_association
 from models.base import MusicBase, SoftDeleteMixin, TimestampMixin
 
 
@@ -18,13 +17,11 @@ class Song(MusicBase, SoftDeleteMixin, TimestampMixin):
     song_cover_url: Optional[str] = Column(String(255), default="")
     song_url: Optional[str] = Column(String(255), default="")
     creater_id: int = Column(Integer)
-    playlist_id: Mapped[int] = mapped_column(
-        ForeignKey("playlists.id", name="fk_songs_playlist_id")
-    )
 
     # 定义与Playlist的多对多关系
     playlists = relationship(
         "Playlist",
+        secondary="playlist_song_association",
         back_populates="songs"
     )
 
