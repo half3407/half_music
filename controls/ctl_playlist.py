@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from db.db_server import DataBaseServer
 from models.playlist import Playlist, PlaylistIn
 from sqlalchemy.orm import joinedload
@@ -34,13 +34,31 @@ def create_playlist(playlist: PlaylistIn,
 
 # 查看所有歌单（无权限要求）
 @playlist_router.post("/view_all")
-def get_all_playlists():
-    playlists = session.query(Playlist).all()
-    # 只返回歌单ID、名称和创建者，避免返回过多信息
-    return {"playlists": [{"id": playlist.id, 
-                           "name": playlist.playlist_name,
-                             "creater_id": playlist.playlist_creater
-                             } for playlist in playlists]}
+def get_all_playlists(page: int=Query(1,gt=0),page_size: int=Query(12,gt=0)):
+    #分页查询，按照收藏数降序排序，每页显示12条数据
+    playlists = session.query(Playlist).options(joinedload(Playlist.songs)).order_by(Playlist.playlist_cllect_num.desc()).offset((page-1)*page_size).limit(page_size).all()
+    result = []
+    for playlist in playlists:
+        songs_data = [{
+            "id": song.id,
+            "name": song.song_name,
+            "singer": song.song_singer,
+            "cover_url": song.song_cover_url
+        }
+        for song in playlist.songs  #遍历关系对象
+        ]
+        result.append({
+            "playlist": {
+                "id": playlist.id,
+                "name": playlist.playlist_name,
+                "creater_id": playlist.playlist_creater,
+                "created_at": playlist.created_at,
+                "collect_num": playlist.playlist_cllect_num,
+                "songs_count": len(songs_data)
+            }
+        })
+    return result
+
 
 # 查看某个歌单详情（无权限要求）
 @playlist_router.post("/view_single/{playlist_id}")

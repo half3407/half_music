@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from models.playlist import Playlist
 from utils.token import get_current_user_info
 from db.db_server import DataBaseServer
@@ -66,14 +66,18 @@ def update_song(song_id: int,
 
 #查看所有歌曲（无权限要求）
 @song_router.post("/view_all")
-def view_all_songs():
-    songs = session.query(Song).all()
-    return {"songs": [{"id": song.id,
-                        "name": song.song_name,
-                        "singer": song.song_singer,
-                        "cover_url": song.song_cover_url,
-                        "url": song.song_url
-                        } for song in songs]}
+def view_all_songs(page: int=Query(1,gt=0),page_size: int=Query(12,gt=0)):
+    #按照创建时间排序，最新的歌曲在前面，分页查询，每页显示12条数据
+    songs = session.query(Song).order_by(Song.created_at.desc()).offset((page-1)*page_size).limit(page_size).all()
+    result = []
+    for song in songs:
+        result.append({
+            "id": song.id,
+            "name": song.song_name,
+            "singer": song.song_singer
+        })
+    return {"songs": result}
+
 
 #查看某首歌曲详情（无权限要求）
 #TODO:后续或可加入其他搜索条件如歌手、专辑等

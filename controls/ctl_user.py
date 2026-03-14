@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from models.playlist import Playlist
 from utils.token import generate_jwt_token, get_current_user_info
 from db.db_server import DataBaseServer
@@ -51,19 +51,20 @@ def login_user(user_in: UserIn):
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-'''#查看所有用户基本信息，用户名和用户ID（权限：管理员）
+#查看所有用户基本信息，用户名和用户ID
 @user_router.post("/view_all_user")
-def view_all_user(current_user_info: dict = Depends(get_current_user_info)):
-    if current_user_info["role"] != "admin":
-        raise HTTPException(status_code=403, detail="无权限查看所有用户信息")
-    users = session.query(User).all()
-    return {"users": [{"id": user.id, "username": user.username} for user in users]}
-'''
-#查看所有用户基本信息，用户名和用户ID 无权限要求供调试用
-@user_router.post("/view_all_user")
-def view_all_user():
-    users = session.query(User).all()
-    return {"users": [{"id": user.id, "username": user.username, "role": user.role} for user in users]}
+def view_all_user(page: int=Query(1,gt=0),page_size: int=Query(12,gt=0)):
+    #分页查询，每页显示12条数据
+    #TODO：后续完成用户关注功能这里可以按照被关注数排序
+    users = session.query(User).offset((page-1)*page_size).limit(page_size).all()
+    result = []
+    for user in users:
+        result.append({
+            "id": user.id,
+            "username": user.username
+        })
+    return {"users": result}
+
 
 
 

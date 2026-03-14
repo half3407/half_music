@@ -1,7 +1,7 @@
 
 
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from db.db_server import DataBaseServer
 from models.comment import Comment, CommentIn
@@ -42,11 +42,17 @@ def delete_comment(comment_id: int,
 #评论应不可修改
 
 #查看某首歌曲下的所有评论，只显示评论id和评论时间（权限：所有用户）
-#按照创建时间排序，最新的评论在前面
 @comment_router.post("/view_all/{song_id}")
-def view_comments(song_id: int):
-    comments = session.query(Comment).filter(Comment.song_id == song_id).order_by(Comment.created_at.desc()).all()
-    return [{"comment_id": comment.id, "create_time": comment.create_time} for comment in comments]
+def view_comments(song_id: int,page: int=Query(1,gt=0),page_size: int=Query(12,gt=0)):
+    #按照创建时间排序，最新的评论在前面，分页查询，每页显示12条数据
+    commens = session.query(Comment).filter(Comment.song_id == song_id).order_by(Comment.created_at.desc()).offset((page-1)*page_size).limit(page_size).all()
+    result = []
+    for comment in commens:
+        result.append({
+            "comment_id": comment.id,
+            "created_at": comment.created_at
+        })
+    return result
 
 
 #查看某条评论的详细信息（权限：所有用户）
