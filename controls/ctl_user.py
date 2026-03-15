@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from deps.pagination import PaginationParams, get_pagination
 from models.playlist import Playlist
 from utils.token import generate_jwt_token, get_current_user_info
 from db.db_server import DataBaseServer
@@ -68,9 +69,9 @@ def view_all_user(page: int=Query(1,gt=0),page_size: int=Query(12,gt=0)):
 
 #搜索用户，无权限限制，模糊搜索用户名
 @user_router.post("/search_user")
-def search_user(username: str, page: int=Query(1,gt=0),page_size: int=Query(12,gt=0)):
+def search_user(username: str, pagination: PaginationParams = Depends(get_pagination)):
     #模糊搜索，分页查询，每页显示12条数据
-    users = session.query(User).filter(User.username.like(f"%{username}%")).offset((page-1)*page_size).limit(page_size).all()
+    users = session.query(User).filter(User.username.like(f"%{username}%")).offset((pagination.page-1)*pagination.page_size).limit(pagination.page_size).all()
     result = []
     for user in users:
         result.append({

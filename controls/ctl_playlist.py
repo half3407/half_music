@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from db.db_server import DataBaseServer
+from deps.pagination import PaginationParams, get_pagination
 from models.playlist import Playlist, PlaylistIn
 from sqlalchemy.orm import joinedload
 from models.user import User
@@ -34,9 +35,9 @@ def create_playlist(playlist: PlaylistIn,
 
 # 查看所有歌单（无权限要求）
 @playlist_router.post("/view_all")
-def get_all_playlists(page: int=Query(1,gt=0),page_size: int=Query(12,gt=0)):
+def get_all_playlists(pagination: PaginationParams = Depends(get_pagination)):
     #分页查询，按照收藏数降序排序，每页显示12条数据
-    playlists = session.query(Playlist).options(joinedload(Playlist.songs)).order_by(Playlist.playlist_cllect_num.desc()).offset((page-1)*page_size).limit(page_size).all()
+    playlists = session.query(Playlist).options(joinedload(Playlist.songs)).order_by(Playlist.playlist_cllect_num.desc()).offset((pagination.page-1)*pagination.page_size).limit(pagination.page_size).all()
     result = []
     for playlist in playlists:
         songs_data = [{
@@ -62,9 +63,9 @@ def get_all_playlists(page: int=Query(1,gt=0),page_size: int=Query(12,gt=0)):
 
 #搜索歌单，无权限限制，模糊搜索歌单名
 @playlist_router.post("/search_playlist")
-def search_playlist(playlist_name: str, page: int=Query(1,gt=0),page_size: int=Query(12,gt=0)):
+def search_playlist(playlist_name: str, pagination: PaginationParams = Depends(get_pagination)):
     #模糊搜索，分页查询，每页显示12条数据
-    playlists = session.query(Playlist).options(joinedload(Playlist.songs)).filter(Playlist.playlist_name.like(f"%{playlist_name}%")).offset((page-1)*page_size).limit(page_size).all()
+    playlists = session.query(Playlist).options(joinedload(Playlist.songs)).filter(Playlist.playlist_name.like(f"%{playlist_name}%")).offset((pagination.page-1)*pagination.page_size).limit(pagination.page_size).all()
     result = []
     for playlist in playlists:
         songs_data = [{

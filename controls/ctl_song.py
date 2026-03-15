@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from deps.pagination import PaginationParams, get_pagination
 from models.playlist import Playlist
 from utils.token import get_current_user_info
 from db.db_server import DataBaseServer
@@ -66,9 +67,9 @@ def update_song(song_id: int,
 
 #查看所有歌曲（无权限要求）
 @song_router.post("/view_all")
-def view_all_songs(page: int=Query(1,gt=0),page_size: int=Query(12,gt=0)):
+def view_all_songs(pagination: PaginationParams = Depends(get_pagination)):
     #按照创建时间排序，最新的歌曲在前面，分页查询，每页显示12条数据
-    songs = session.query(Song).order_by(Song.created_at.desc()).offset((page-1)*page_size).limit(page_size).all()
+    songs = session.query(Song).order_by(Song.created_at.desc()).offset((pagination.page-1)*pagination.page_size).limit(pagination.page_size).all()
     result = []
     for song in songs:
         result.append({
@@ -81,9 +82,9 @@ def view_all_songs(page: int=Query(1,gt=0),page_size: int=Query(12,gt=0)):
 
 #搜索歌曲，无权限限制，模糊搜索歌曲名或歌手
 @song_router.post("/search_song")
-def search_song(keyword: str, page: int=Query(1,gt=0),page_size: int=Query(12,gt=0)):
+def search_song(keyword: str, pagination: PaginationParams = Depends(get_pagination)):
     #模糊搜索，分页查询，每页显示12条数据
-    songs = session.query(Song).filter((Song.song_name.like(f"%{keyword}%")) | (Song.song_singer.like(f"%{keyword}%"))).offset((page-1)*page_size).limit(page_size).all()
+    songs = session.query(Song).filter((Song.song_name.like(f"%{keyword}%")) | (Song.song_singer.like(f"%{keyword}%"))).offset((pagination.page-1)*pagination.page_size).limit(pagination.page_size).all()
     result = []
     for song in songs:
         result.append({

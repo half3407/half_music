@@ -4,6 +4,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from db.db_server import DataBaseServer
+from deps.pagination import PaginationParams, get_pagination
 from models.comment import Comment, CommentIn
 from utils.token import get_current_user_info
 
@@ -43,9 +44,9 @@ def delete_comment(comment_id: int,
 
 #查看某首歌曲下的所有评论，只显示评论id和评论时间（权限：所有用户）
 @comment_router.post("/view_all/{song_id}")
-def view_comments(song_id: int,page: int=Query(1,gt=0),page_size: int=Query(12,gt=0)):
+def view_comments(song_id: int,pagination: PaginationParams = Depends(get_pagination)):
     #按照创建时间排序，最新的评论在前面，分页查询，每页显示12条数据
-    commens = session.query(Comment).filter(Comment.song_id == song_id).order_by(Comment.created_at.desc()).offset((page-1)*page_size).limit(page_size).all()
+    commens = session.query(Comment).filter(Comment.song_id == song_id).order_by(Comment.created_at.desc()).offset((pagination.page-1)*pagination.page_size).limit(pagination.page_size).all()
     result = []
     for comment in commens:
         result.append({
