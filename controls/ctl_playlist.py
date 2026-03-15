@@ -60,6 +60,33 @@ def get_all_playlists(page: int=Query(1,gt=0),page_size: int=Query(12,gt=0)):
     return result
 
 
+#搜索歌单，无权限限制，模糊搜索歌单名
+@playlist_router.post("/search_playlist")
+def search_playlist(playlist_name: str, page: int=Query(1,gt=0),page_size: int=Query(12,gt=0)):
+    #模糊搜索，分页查询，每页显示12条数据
+    playlists = session.query(Playlist).options(joinedload(Playlist.songs)).filter(Playlist.playlist_name.like(f"%{playlist_name}%")).offset((page-1)*page_size).limit(page_size).all()
+    result = []
+    for playlist in playlists:
+        songs_data = [{
+            "id": song.id,
+            "name": song.song_name,
+            "singer": song.song_singer,
+            "cover_url": song.song_cover_url
+        }
+        for song in playlist.songs  #遍历关系对象
+        ]
+        result.append({
+            "playlist": {
+                "id": playlist.id,
+                "name": playlist.playlist_name,
+                "creater_id": playlist.playlist_creater,
+                "created_at": playlist.created_at,
+                "collect_num": playlist.playlist_cllect_num,
+                "songs_count": len(songs_data)
+            }
+        })
+    return result
+
 # 查看某个歌单详情（无权限要求）
 @playlist_router.post("/view_single/{playlist_id}")
 def get_playlist(playlist_id: int):

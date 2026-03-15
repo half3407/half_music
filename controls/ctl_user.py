@@ -66,7 +66,18 @@ def view_all_user(page: int=Query(1,gt=0),page_size: int=Query(12,gt=0)):
     return {"users": result}
 
 
-
+#搜索用户，无权限限制，模糊搜索用户名
+@user_router.post("/search_user")
+def search_user(username: str, page: int=Query(1,gt=0),page_size: int=Query(12,gt=0)):
+    #模糊搜索，分页查询，每页显示12条数据
+    users = session.query(User).filter(User.username.like(f"%{username}%")).offset((page-1)*page_size).limit(page_size).all()
+    result = []
+    for user in users:
+        result.append({
+            "id": user.id,
+            "username": user.username
+        })
+    return {"users": result}
 
 #查看某位用户详细信息（权限：用户本人或管理员）
 @user_router.post("/view_single_user/{user_id}")

@@ -79,6 +79,22 @@ def view_all_songs(page: int=Query(1,gt=0),page_size: int=Query(12,gt=0)):
     return {"songs": result}
 
 
+#搜索歌曲，无权限限制，模糊搜索歌曲名或歌手
+@song_router.post("/search_song")
+def search_song(keyword: str, page: int=Query(1,gt=0),page_size: int=Query(12,gt=0)):
+    #模糊搜索，分页查询，每页显示12条数据
+    songs = session.query(Song).filter((Song.song_name.like(f"%{keyword}%")) | (Song.song_singer.like(f"%{keyword}%"))).offset((page-1)*page_size).limit(page_size).all()
+    result = []
+    for song in songs:
+        result.append({
+            "id": song.id,
+            "name": song.song_name,
+            "singer": song.song_singer
+        })
+    return {"songs": result}
+
+
+
 #查看某首歌曲详情（无权限要求）
 #TODO:后续或可加入其他搜索条件如歌手、专辑等
 @song_router.post("/view_single/{song_id}")
