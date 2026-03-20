@@ -4,7 +4,7 @@ import time
 from fastapi import HTTPException, Header
 import jwt  
 
-JWT_TOKEN_EXPIRE_TIME = os.environ.get('JWT_TOKEN_EXPIRE_TIME', 3600 * 2)  # token有效时间 2小时
+JWT_TOKEN_EXPIRE_TIME = int(os.environ.get('JWT_TOKEN_EXPIRE_TIME', 7200))  # token有效时间 2小时
 JWT_SECRET:str = os.environ.get('JWT_SECRET', '7m#L9v@Qx2pKf$Rn8sW4eY6!zA1hC5tG')   # 加解密密钥
 JWT_ALGORITHM:str = os.environ.get('JWT_ALGORITHM', 'HS256')  # 加解密算法
 
