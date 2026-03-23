@@ -3,7 +3,8 @@ from deps.pagination import PaginationParams, get_pagination
 from sqlalchemy.orm import Session
 from deps.database import get_db
 from models.playlist import Playlist
-from utils.token import generate_jwt_token, get_current_user_info
+from utils.token import generate_jwt_token
+from deps.permissions import require_user_self_or_admin
 from db.db_server import DataBaseServer
 from models.user import User, UserIn
 import hashlib
@@ -51,7 +52,11 @@ def login_user(user_in: UserIn, db: Session = Depends(get_db)):
         "role": judg_user.role
     }
     access_token = generate_jwt_token(judg_user.id, judg_user.role)
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {"access_token": access_token,
+             "token_type": "bearer",
+             "user_id": judg_user.id,
+             "username": judg_user.username,
+             "role": judg_user.role}
 
 
 #查看所有用户基本信息，用户名和用户ID
@@ -66,7 +71,8 @@ def view_all_user(page: int=Query(1,gt=0),
     for user in users:
         result.append({
             "id": user.id,
-            "username": user.username
+            "username": user.username,
+            "role": user.role
         })
     return {"users": result}
 
@@ -89,13 +95,11 @@ def search_user(username: str,
 #查看某位用户详细信息（权限：用户本人或管理员）
 @user_router.post("/view_single_user/{user_id}")
 def view_single_user(user_id: int,
-                     current_user_info: dict = Depends(get_current_user_info),
+                     user: dict = Depends(require_user_self_or_admin),
                      db: Session = Depends(get_db)):
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="用户不存在")
-    if str(user.id) != str(current_user_info["user_id"]) and current_user_info["role"] != "admin":
-        raise HTTPException(status_code=403, detail="无权限查看该用户信息")
     return {"user": user}
 
 
@@ -103,17 +107,11 @@ def view_single_user(user_id: int,
 @user_router.post("/update_user/{user_id}")
 def update_user(user_id: int, 
                 user_in: UserIn,
-                current_user_info: dict = Depends(get_current_user_info),
+                user: dict = Depends(require_user_self_or_admin),
                 db: Session = Depends(get_db)):
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="用户不存在")
-    if str(user.id) != str(current_user_info["user_id"]) and current_user_info["role"] != "admin":
-        raise HTTPException(status_code=403, detail="无权限修改该用户信息")
-    
-    #TODO:应该做更细粒度的权限控制，允许用户单独修改用户名或密码，
-    # 而不是必须同时修改用户名和密码，目前做法是如果用户不想修改某项信息则在请求体中传入原信息即可
-
     #改用户名
     user.username = user_in.username
     #改密码
@@ -127,13 +125,11 @@ def update_user(user_id: int,
 #TODO：或可做自主选择是否将歌单一并删除，目前做法是删除用户时会删除该用户创建的所有歌单
 @user_router.post("/delete_user/{user_id}")
 def delete_user(user_id: int, 
-                current_user_info: dict = Depends(get_current_user_info),
+                user: dict = Depends(require_user_self_or_admin),
                 db: Session = Depends(get_db)):
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="用户不存在")
-    if str(user.id) != str(current_user_info["user_id"]) and current_user_info["role"] != "admin":
-        raise HTTPException(status_code=403, detail="无权限删除该用户")
     #验证通过后可再获取该用户的所有歌单并删除
     playlists = db.query(Playlist).filter_by(playlist_creater=user_id).all()
     for playlist in playlists:

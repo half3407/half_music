@@ -2,9 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from deps.database import get_db
 from deps.pagination import PaginationParams, get_pagination
+from deps.permissions import require_admin, require_playlist_owner, require_playlist_owner_or_admin
 from models.playlist import Playlist
-from utils.token import get_current_user_info
-from db.db_server import DataBaseServer
 from models.song import Song, SongIn
 
 
@@ -13,12 +12,8 @@ song_router = APIRouter(prefix="/songs", tags=["歌曲管理"])
 #创建歌曲（权限：管理员）
 @song_router.post("/create")
 def create_song(song: SongIn,
-                current_user_info: dict = Depends(get_current_user_info),
+                user: dict = Depends(require_admin),
                 db: Session = Depends(get_db)):
-    #显示当前用户角色以便调试
-    print(f"当前用户角色: {current_user_info['role']}")
-    if current_user_info["role"] != "admin":
-        raise HTTPException(status_code=403, detail="无权限创建歌曲")
     new_song = Song(
         song_name=song.song_name,
         song_singer=song.song_singer,
@@ -27,7 +22,7 @@ def create_song(song: SongIn,
         song_album=song.song_album,
         song_cover_url=song.song_cover_url,
         song_url=song.song_url,
-        creater_id=current_user_info["user_id"]
+        creater_id=user["user_id"]
     )
     db.add(new_song)
     db.commit()
@@ -36,10 +31,8 @@ def create_song(song: SongIn,
 #删除歌曲（权限：管理员）
 @song_router.post("/delete/{song_id}")
 def delete_song(song_id: int,
-                current_user_info: dict = Depends(get_current_user_info),
+                user: dict = Depends(require_admin),
                 db: Session = Depends(get_db)):
-    if current_user_info["role"] != "admin":
-        raise HTTPException(status_code=403, detail="无权限删除歌曲")
     song = db.query(Song).filter_by(id=song_id).first()
     if not song:
         raise HTTPException(status_code=404, detail="歌曲不存在")
@@ -51,11 +44,9 @@ def delete_song(song_id: int,
 @song_router.post("/update/{song_id}")
 def update_song(song_id: int, 
                 song: SongIn, 
-                current_user_info: dict = Depends(get_current_user_info),
+                user: dict = Depends(require_admin),
                 db: Session = Depends(get_db)
                 ):
-    if current_user_info["role"] != "admin":
-        raise HTTPException(status_code=403, detail="无权限修改歌曲信息")
     song_to_update = db.query(Song).filter_by(id=song_id).first()
     if not song_to_update:
         raise HTTPException(status_code=404, detail="歌曲不存在")
@@ -123,12 +114,12 @@ def view_single_song(song_id: int,
                      }}
 
 
-#添加歌曲到歌单（权限：歌单创建者或管理员）
+#添加歌曲到歌单（权限：歌单创建者）
 @song_router.post("/add_to_playlist/{song_id}/{playlist_id}")
 def add_song_to_playlist(song_id: int,
-                        playlist_id: int, 
-                        current_user_info: dict = Depends(get_current_user_info),
-                        db: Session = Depends(get_db)
+                         playlist_id: int, 
+                         user: dict = Depends(require_playlist_owner),
+                         db: Session = Depends(get_db)
                         ):
     song = db.query(Song).filter_by(id=song_id).first()
     if not song:
@@ -136,8 +127,6 @@ def add_song_to_playlist(song_id: int,
     playlist = db.query(Playlist).filter_by(id=playlist_id).first()
     if not playlist:
         raise HTTPException(status_code=404, detail="歌单不存在")
-    if str(playlist.playlist_creater) != str(current_user_info["user_id"]) and current_user_info["role"] != "admin":
-        raise HTTPException(status_code=403, detail="无权限添加歌曲到该歌单")
     if song in playlist.songs:
         raise HTTPException(status_code=400, detail="该歌曲已在歌单中")
     playlist.songs.append(song)
@@ -148,12 +137,12 @@ def add_song_to_playlist(song_id: int,
             "current_songs_count": len(playlist.songs)}
 
 
-#将歌曲从歌单中删除（权限：歌单创建者或管理员）
+#将歌曲从歌单中删除（权限：歌单创建者）
 @song_router.post("/delete_from_playlist/{song_id}/{playlist_id}")
 def delete_song_from_playlist(song_id: int,
-                                playlist_id: int, 
-                                db: Session = Depends(get_db),
-                                current_user_info: dict = Depends(get_current_user_info)
+                              playlist_id: int,
+                              user: dict = Depends(require_playlist_owner),
+                              db: Session = Depends(get_db)
                                 ):
     song = db.query(Song).filter_by(id=song_id).first()
     if not song:
@@ -161,8 +150,6 @@ def delete_song_from_playlist(song_id: int,
     playlist = db.query(Playlist).filter_by(id=playlist_id).first()
     if not playlist:
         raise HTTPException(status_code=404, detail="歌单不存在")
-    if str(playlist.playlist_creater) != str(current_user_info["user_id"]) and current_user_info["role"] != "admin":
-        raise HTTPException(status_code=403, detail="无权限移除该歌曲从该歌单")
     if song not in playlist.songs:
         raise HTTPException(status_code=400, detail="该歌曲不在歌单中")
     playlist.songs.remove(song)
