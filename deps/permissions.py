@@ -1,6 +1,7 @@
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from deps.database import get_db
+from models.comment import Comment
 from models.playlist import Playlist
 from utils.token import get_current_user_info
 
@@ -67,3 +68,16 @@ def get_playlist_with_permission(playlist_id: int,
     if not is_owner and not is_admin:
         raise HTTPException(status_code=403, detail="无权限查看该歌单")
     return playlist
+
+
+def get_comment_with_permission(comment_id: int,
+                                 user: dict = Depends(require_authenticated),
+                                 db: Session = Depends(get_db)) -> Comment:
+    comment = db.query(Comment).filter(Comment.id == comment_id).first()
+    if not comment:
+        raise HTTPException(status_code=404, detail="评论不存在")
+    is_owner = str(comment.creater_id) == str(user["user_id"])
+    is_admin = user["role"] == "admin"
+    if not is_owner and not is_admin:
+        raise HTTPException(status_code=403, detail="无权限查看该评论")
+    return comment

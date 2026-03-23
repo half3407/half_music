@@ -2,22 +2,20 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from deps.pagination import PaginationParams, get_pagination
 from deps.database import get_db
+from deps.permissions import get_comment_with_permission, require_authenticated
 from models.comment import Comment, CommentIn
-from utils.token import get_current_user_info
 
 comment_router = APIRouter(prefix="/comments", tags=["评论功能"])
 
 #创建评论（权限：普通用户和管理员)
 @comment_router.post("/create")
 def create_comment(comment_in: CommentIn,
-                   current_user_info: dict = Depends(get_current_user_info),
+                   user = Depends(require_authenticated),
                    db: Session = Depends(get_db)):
-    if current_user_info["role"] not in ["admin", "user"]:
-        raise HTTPException(status_code=403, detail="无权限创建评论")
     new_comment = Comment(
         content=comment_in.content,
         song_id=comment_in.song_id,
-        creater_id=current_user_info["user_id"]
+        creater_id=user["user_id"]
     )
     db.add(new_comment)
     db.commit()
@@ -25,14 +23,8 @@ def create_comment(comment_in: CommentIn,
 
 #删除评论（权限：管理员和评论创建者）
 @comment_router.post("/delete/{comment_id}")
-def delete_comment(comment_id: int,
-                   current_user_info: dict = Depends(get_current_user_info),
+def delete_comment(comment: Comment = Depends(get_comment_with_permission),
                    db: Session = Depends(get_db)):
-    comment = db.query(Comment).filter(Comment.id == comment_id).first()
-    if not comment:
-        raise HTTPException(status_code=404, detail="评论不存在")
-    if comment.creater_id != current_user_info["user_id"] and current_user_info["role"] != "admin":
-        raise HTTPException(status_code=403, detail="无权限删除该评论")
     db.delete(comment)
     db.commit()
     return {"message": "评论删除成功"}
