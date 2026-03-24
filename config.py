@@ -1,4 +1,6 @@
 from pydantic_settings import BaseSettings
+from pathlib import Path
+from typing import List
 
 
 class Settings(BaseSettings):
@@ -20,11 +22,38 @@ class Settings(BaseSettings):
     page_size_max: int = 100 # 每页最大数量
     page_size_min: int = 1 # 每页最小数量
 
+
+    #文件上传相关配置
+    UPLOAD_DIR: str = "/py_codes/half_music_upload/"
+    MAX_UPLOAD_SIZE:int = 20971520
+    ALLOWED_IMAGE_TYPES: str = "image/jpeg,image/png"
+    ALLOWED_AUDIO_TYPES: str = "audio/mp3"
+    STATIC_URL_PREFIX: str = "/static"
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
         case_sensitive = False # 环境变量不区分大小写
         extra = "allow" # 允许额外的环境变量，不会因为未定义的环境变量而报错
+
+    @property
+    def upload_path(self) -> Path:
+        return Path(self.UPLOAD_DIR)
+    
+    @property
+    def cover_dir(self) -> Path: return self.upload_path / "covers"
+    @property
+    def song_dir(self) -> Path: return self.upload_path / "songs"
+    @property
+    def avatar_dir(self) -> Path: return self.upload_path / "avatars"
+    
+    @property
+    def allowed_image_types_list(self) -> List[str]:
+        return [t.strip() for t in self.ALLOWED_IMAGE_TYPES.split(",")]
+    
+    @property
+    def allowed_audio_types_list(self) -> List[str]:
+        return [t.strip() for t in self.ALLOWED_AUDIO_TYPES.split(",")]
 
 
 settings = Settings()

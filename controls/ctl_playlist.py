@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from db.db_server import DataBaseServer
 from deps.database import get_db
 from deps.pagination import PaginationParams, get_pagination
@@ -31,6 +31,9 @@ def create_playlist(playlist: PlaylistIn,
             "playlist_introduction": new_playlist.playlist_introduction,
             "playlist_cover_url": new_playlist.playlist_cover_url,
             "playlist_creater": new_playlist.playlist_creater}
+
+
+
 
 # 查看所有歌单（无权限要求）
 @playlist_router.post("/view_all")
