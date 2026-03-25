@@ -85,3 +85,50 @@ async def upload_song(
         "data": {"file_url": file_url, "original_name": file.filename}
     }
 
+@file_router.post("/avatar")
+async def upload_avatar(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(require_authenticated),
+    db: Session = Depends(get_db)
+):
+    # 验证图片类型/大小（同封面逻辑）
+    if file.content_type not in settings.allowed_image_types_list:
+        raise HTTPException(400, detail="仅支持图片格式")
+    content = await file.read()
+    if len(content) > settings.MAX_UPLOAD_SIZE:
+        raise HTTPException(400, detail="头像不能超过10MB")
+    
+    ext = Path(file.filename).suffix.lower()
+    if ext not in [".jpg", ".jpeg", ".png"]:
+        raise HTTPException(400, detail="仅支持JPG/PNG头像")
+    
+    # 生成新文件名
+    new_filename = f"{uuid.uuid4()}{ext}"
+    save_path = settings.avatar_dir / new_filename
+    
+    # 保存新头像
+    with open(save_path, "wb") as f:
+        f.write(content)
+    
+    # 除旧头像文件
+    old_avatar_url = current_user.get("avatar_url", "")
+    if old_avatar_url and old_avatar_url.startswith(settings.STATIC_URL_PREFIX):
+        old_filename = old_avatar_url.split("/")[-1]
+        old_path = settings.avatar_dir / old_filename
+        if old_path.exists():
+            old_path.unlink()
+    
+    # 更新数据库
+    user = db.query(User).filter(User.id == current_user["user_id"]).first()
+    if not user:
+        raise HTTPException(404, detail="用户不存在")
+    
+    new_url = f"{settings.STATIC_URL_PREFIX}/avatars/{new_filename}"
+    user.avatar_url = new_url
+    db.commit()
+    
+    return {
+        "code": 200,
+        "message": "头像更新成功",
+        "data": {"avatar_url": new_url}
+    }
