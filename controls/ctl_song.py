@@ -96,7 +96,6 @@ def search_song(keyword: str,
 
 
 #查看某首歌曲详情（无权限要求）
-#TODO:后续或可加入其他搜索条件如歌手、专辑等
 @song_router.post("/view_single/{song_id}")
 def view_single_song(song_id: int,
                      db: Session = Depends(get_db)):

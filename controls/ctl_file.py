@@ -13,6 +13,8 @@ from models.user import User
 
 file_router = APIRouter(prefix="/files", tags=["文件管理"])
 
+
+#歌单封面上传
 @file_router.post("/cover")
 async def upload_cover(
     file: UploadFile = File(...),
@@ -54,6 +56,7 @@ async def upload_cover(
         }
     }
 
+#音频文件上传
 @file_router.post("/song")
 async def upload_song(
     file: UploadFile = File(...),
@@ -85,6 +88,7 @@ async def upload_song(
         "data": {"file_url": file_url, "original_name": file.filename}
     }
 
+# 用户头像上传
 @file_router.post("/avatar")
 async def upload_avatar(
     file: UploadFile = File(...),

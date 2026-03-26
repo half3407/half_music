@@ -16,7 +16,6 @@ def generate_jwt_token(user_id: int, role: str)->str:
 
 
 # 获取当前用户ID和role的依赖函数
-#TODO：后续应从路由层面进行权限控制，无权限则直接无法访问路由
 def get_current_user_info(authorization: str = Header(...)):
     if not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Token格式错误")

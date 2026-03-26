@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.pyc
+*$py.class
+*.so
+*.pyo
+*.pyd
+
+# 虚拟环境（关键！）
+.venv/
+venv/
+ENV/
+
+# 敏感配置（关键！）
+.env
+.env.local
+.env.*.local
+
+# 数据库（关键！）
+*.db
+*.sqlite
+music.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# 日志/临时文件
+*.log
+*.tmp
+*.temp
