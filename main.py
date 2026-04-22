@@ -4,6 +4,7 @@ import uvicorn
 import datetime
 from fastapi import FastAPI
 from db.db_server import DataBaseServer
+from fastapi.middleware.cors import CORSMiddleware
 from log import init_logger, logger
 from config import settings
 from controls.ctl_user import user_router
@@ -46,6 +47,16 @@ app.mount(
 
 print(f"✅ 静态文件服务已挂载到: {settings.STATIC_URL_PREFIX}")
 print(f"📁 封面目录: {settings.cover_dir.absolute()}")
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 #注册路由
 app.include_router(user_router,prefix=f"{ROOT_ROUTER_PREFIX}",tags=["用户管理"])
