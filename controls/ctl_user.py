@@ -122,18 +122,37 @@ def update_user(user_id: int,
     return {"message": "用户信息更新成功"}
 
 #注销用户（权限：用户本人或管理员）
-#TODO：或可做自主选择是否将歌单一并删除，目前做法是删除用户时会删除该用户创建的所有歌单
 @user_router.post("/delete_user/{user_id}")
-def delete_user(user_id: int, 
-                user: dict = Depends(require_user_self_or_admin),
-                db: Session = Depends(get_db)):
-    user = db.query(User).filter_by(id=user_id).first()
-    if not user:
+def delete_user(
+    user_id: int,
+    delete_playlists: bool = True,
+    user: dict = Depends(require_user_self_or_admin),
+    db: Session = Depends(get_db)
+):
+    target_user = db.query(User).filter_by(id=user_id).first()
+    if not target_user:
         raise HTTPException(status_code=404, detail="用户不存在")
-    #验证通过后可再获取该用户的所有歌单并删除
-    playlists = db.query(Playlist).filter_by(playlist_creater=user_id).all()
-    for playlist in playlists:
-        db.delete(playlist)
-    db.delete(user)
+    
+    playlists_query = db.query(Playlist).filter_by(playlist_creater=user_id)
+    
+    if delete_playlists:
+        # 删除该用户创建的所有歌单
+        playlists = playlists_query.all()
+        for playlist in playlists:
+            db.delete(playlist)
+        operation_msg = "并已删除其创建的所有歌单"
+    else:
+        # 保留歌单，将creater标记为0
+        updated_count = playlists_query.update(
+            {"playlist_creater": 0}, 
+            synchronize_session=False  # 提升批量更新效率
+        )
+        operation_msg = f"并保留{updated_count}个歌单（creater标记为0）"
+    
+    db.delete(target_user)
     db.commit()
-    return {"message": "用户删除成功"}
+    
+    return {
+        "message": f"用户删除成功{operation_msg}",
+        "playlists_handled": "deleted" if delete_playlists else "transferred_to_system"
+    }
