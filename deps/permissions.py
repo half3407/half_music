@@ -29,7 +29,7 @@ def require_playlist_owner(playlist_id: int,
             detail="歌单不存在"
         )
     #验证歌单所有者
-    if playlist.user_id != user["user_id"]:
+    if str(playlist.playlist_creater) != str(user["user_id"]):
         raise HTTPException(status_code=403, detail="无权限操作该歌单")
     return user
 
@@ -45,7 +45,7 @@ def require_playlist_owner_or_admin(playlist_id: int,
             detail="歌单不存在"
         )
     #验证歌单所有者或管理员
-    if playlist.user_id != user["user_id"] and user["role"] != "admin":
+    if str(playlist.playlist_creater) != str(user["user_id"]) and user["role"] != "admin":
         raise HTTPException(status_code=403, detail="无权限操作该歌单")
     return user
 

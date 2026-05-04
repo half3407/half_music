@@ -144,7 +144,7 @@ def collect_playlist(playlist_id: int,
 #删除歌单（权限：歌单创建者或管理员）
 @playlist_router.post("/delete/{playlist_id}")
 def delete_playlist(playlist_id: int,
-                    user = Depends(require_authenticated),
+                    user = Depends(require_playlist_owner_or_admin),
                     db: Session = Depends(get_db)):
     playlist = db.query(Playlist).filter_by(id=playlist_id).first()
     if not playlist:
