@@ -26,8 +26,8 @@ class Settings(BaseSettings):
     #文件上传相关配置
     UPLOAD_DIR: str = "/py_codes/half_music_upload/"
     MAX_UPLOAD_SIZE:int = 20971520
-    ALLOWED_IMAGE_TYPES: str = "image/jpeg,image/png"
-    ALLOWED_AUDIO_TYPES: str = "audio/mp3"
+    ALLOWED_AUDIO_TYPES: str = "audio/mpeg,audio/mp3,audio/wav,audio/ogg"
+    ALLOWED_IMAGE_TYPES: str = "image/jpeg,image/png,image/gif,image/webp"
     STATIC_URL_PREFIX: str = "/static"
 
     class Config:

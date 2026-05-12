@@ -72,7 +72,9 @@ def view_all_songs(pagination: PaginationParams = Depends(get_pagination),
         result.append({
             "id": song.id,
             "name": song.song_name,
-            "singer": song.song_singer
+            "singer": song.song_singer,
+            "url": song.song_url,
+            "cover_url": song.song_cover_url
         })
     return {"songs": result}
 
@@ -89,7 +91,9 @@ def search_song(keyword: str,
         result.append({
             "id": song.id,
             "name": song.song_name,
-            "singer": song.song_singer
+            "singer": song.song_singer,
+            "url": song.song_url,
+            "cover_url": song.song_cover_url
         })
     return {"songs": result}
 

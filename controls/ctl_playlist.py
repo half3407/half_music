@@ -47,7 +47,8 @@ def get_all_playlists(pagination: PaginationParams = Depends(get_pagination),
             "id": song.id,
             "name": song.song_name,
             "singer": song.song_singer,
-            "cover_url": song.song_cover_url
+            "cover_url": song.song_cover_url,
+            "url": song.song_url
         }
         for song in playlist.songs  #遍历关系对象
         ]
@@ -77,7 +78,8 @@ def search_playlist(playlist_name: str,
             "id": song.id,
             "name": song.song_name,
             "singer": song.song_singer,
-            "cover_url": song.song_cover_url
+            "cover_url": song.song_cover_url,
+            "url": song.song_url
         }
         for song in playlist.songs  #遍历关系对象
         ]
@@ -104,7 +106,8 @@ def get_playlist(playlist_id: int,
             "id": song.id,
             "name": song.song_name,
             "singer": song.song_singer,
-            "cover_url": song.song_cover_url
+            "cover_url": song.song_cover_url,
+            "url": song.song_url
         }
         for song in playlist.songs  #遍历关系对象
     ]

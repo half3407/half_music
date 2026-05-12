@@ -64,7 +64,7 @@ async def upload_song(
 ):
     # 验证音频类型
     if file.content_type not in settings.allowed_audio_types_list:
-        raise HTTPException(400, detail=f"仅支持音频: {', '.join(settings.allowed_audio_types_list)}")
+        raise HTTPException(400, detail=f"仅支持音频: {', '.join(settings.allowed_audio_types_list)}，你上传的是: {file.content_type}")
     
     content = await file.read()
     if len(content) > settings.MAX_UPLOAD_SIZE * 2:
@@ -73,7 +73,7 @@ async def upload_song(
     # 安全扩展名
     ext = Path(file.filename).suffix.lower()
     if ext not in [".mp3", ".wav", ".ogg", ".m4a"]:
-        raise HTTPException(400, detail="不支持的音频格式")
+        raise HTTPException(400, detail=f"不支持的音频扩展名: {ext}")
     
     safe_filename = f"{uuid.uuid4()}{ext}"
     save_path = settings.song_dir / safe_filename
