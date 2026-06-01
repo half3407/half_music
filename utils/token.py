@@ -16,7 +16,9 @@ def generate_jwt_token(user_id: int, role: str)->str:
 
 
 # 获取当前用户ID和role的依赖函数
-def get_current_user_info(authorization: str = Header(...)):
+def get_current_user_info(authorization: str = Header(None)):
+    if authorization is None:
+        raise HTTPException(status_code=401, detail="未提供认证信息")
     if not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Token格式错误")
     token = authorization[7:].strip()
