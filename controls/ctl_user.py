@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.exc import IntegrityError
 from deps.pagination import PaginationParams, get_pagination
 from sqlalchemy.orm import Session
 from deps.database import get_db
@@ -19,15 +20,21 @@ def register_user(user_in: UserIn,
     judg_user = db.query(User).filter_by(username=user_in.username).first()
     if judg_user:
         raise HTTPException(status_code=400, detail="用户名已存在")
+    
     user_in_hash = hashlib.md5()
     user_in_hash.update(user_in.password.encode('utf-8'))
+
     new_user = User(
         username=user_in.username,
         password_hash=user_in_hash.hexdigest(),
         role=user_in.role
     )
     db.add(new_user)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="用户名已存在（并发冲突）")
     return {"message": "用户注册成功"}
 
 

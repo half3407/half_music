@@ -22,6 +22,7 @@ import os,sys
 
 sys.path.append(os.path.dirname(os.path.dirname(__name__)))
 from models import MusicBase
+from models import *
 target_metadata = MusicBase.metadata
 
 # other values from the config, defined by the needs of env.py,
