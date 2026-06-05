@@ -20,7 +20,22 @@ MUSIC_ENV_DICT = {env: os.environ.get(env) for env in MUSIC_ENVS}
 print(f"[DEBUG] 当前环境变量: {MUSIC_ENV_DICT}")
 
 
-app = FastAPI()
+app = FastAPI(
+    title="Half Music API",
+    description="基于 FastAPI 的音乐流媒体平台后端 API",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 ROOT_ROUTER_PREFIX=os.environ.get("MUSIC_ROOT_ROUTER_PREFIX","/api/v1")
 
 #创建文件上传目录
