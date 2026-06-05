@@ -5,7 +5,6 @@ from deps.database import get_db
 from models.playlist import Playlist
 from utils.token import generate_jwt_token
 from deps.permissions import require_user_self_or_admin
-from db.db_server import DataBaseServer
 from models.user import User, UserIn
 import hashlib
 
@@ -46,11 +45,6 @@ def login_user(user_in: UserIn, db: Session = Depends(get_db)):
     if not judg_user:
         raise HTTPException(status_code=401, detail="用户名或密码错误")
     db.commit()
-    token_data = {
-        "sub": str(judg_user.id), 
-        "username": judg_user.username,
-        "role": judg_user.role
-    }
     access_token = generate_jwt_token(judg_user.id, judg_user.role)
     return {"access_token": access_token,
              "token_type": "bearer",

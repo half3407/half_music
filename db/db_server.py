@@ -12,18 +12,9 @@ def singleton(cls):
 
     return get_instance
 
+engine = create_engine("sqlite:///music.db?check_same_thread=False", echo=True)
+SessionLocal = sessionmaker(bind=engine)
 
-@singleton
-class DataBaseServer:
-    def __init__(self, db_path: str = "music.db"):
-        self.engine = create_engine(f"sqlite:///{db_path}?check_same_thread=False", echo=True)
-        Session = sessionmaker(bind=self.engine)
-        self.session = Session()
-
-    def init_db(self):
-        #显式初始化数据库（建表）
-        from models.base import MusicBase
-        MusicBase.metadata.create_all(self.engine)
-
-    def get_session(self):
-        return self.session
+def init_db():
+    #显式初始化数据库（建表）
+    MusicBase.metadata.create_all(engine)

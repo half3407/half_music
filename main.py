@@ -3,7 +3,7 @@ from fastapi.staticfiles import StaticFiles
 import uvicorn
 import datetime
 from fastapi import FastAPI
-from db.db_server import DataBaseServer
+from db.db_server import init_db
 from fastapi.middleware.cors import CORSMiddleware
 from log import init_logger, logger
 from config import settings
@@ -66,7 +66,7 @@ app.include_router(comment_router,prefix=f"{ROOT_ROUTER_PREFIX}",tags=["评论�
 app.include_router(file_router,prefix=f"{ROOT_ROUTER_PREFIX}",tags=["文件管理"])
 
 # 初始化数据库（建表）
-DataBaseServer().init_db()
+init_db()
 
 if __name__ == "__main__":
 

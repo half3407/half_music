@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
-from db.db_server import DataBaseServer
 from deps.database import get_db
 from deps.pagination import PaginationParams, get_pagination
 from deps.permissions import get_playlist_with_permission, require_authenticated, require_playlist_owner_or_admin
