@@ -4,6 +4,7 @@ from deps.pagination import PaginationParams, get_pagination
 from sqlalchemy.orm import Session
 from deps.database import get_db
 from models.playlist import Playlist
+from utils.security import hash_password, verify_password
 from utils.token import generate_jwt_token
 from deps.permissions import require_user_self_or_admin
 from models.user import User, UserIn
@@ -20,13 +21,10 @@ def register_user(user_in: UserIn,
     judg_user = db.query(User).filter_by(username=user_in.username).first()
     if judg_user:
         raise HTTPException(status_code=400, detail="用户名已存在")
-    
-    user_in_hash = hashlib.md5()
-    user_in_hash.update(user_in.password.encode('utf-8'))
 
     new_user = User(
         username=user_in.username,
-        password_hash=user_in_hash.hexdigest(),
+        password_hash = hash_password(user_in.password),
         role=user_in.role
     )
     db.add(new_user)
@@ -37,21 +35,13 @@ def register_user(user_in: UserIn,
         raise HTTPException(status_code=400, detail="用户名已存在（并发冲突）")
     return {"message": "用户注册成功"}
 
-
 # 用户登录
 @user_router.post("/login")
 def login_user(user_in: UserIn, db: Session = Depends(get_db)):
-    judg_user = (
-        db.query(User)
-        .filter_by(
-            username=user_in.username, 
-            password_hash=hashlib.md5(user_in.password.encode('utf-8')).hexdigest()
-            )
-        .first()
-    )
-    if not judg_user:
+    judg_user = db.query(User).filter_by(username = user_in.username).first()
+    if not judg_user or not verify_password(user_in.password, judg_user.password_hash):
         raise HTTPException(status_code=401, detail="用户名或密码错误")
-    db.commit()
+    
     access_token = generate_jwt_token(judg_user.id, judg_user.role)
     return {"access_token": access_token,
              "token_type": "bearer",
