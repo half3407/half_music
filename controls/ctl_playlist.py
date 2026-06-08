@@ -3,6 +3,8 @@ from deps.database import get_db
 from deps.pagination import PaginationParams, get_pagination
 from deps.permissions import get_playlist_with_permission, require_authenticated, require_playlist_owner_or_admin
 from models.playlist import Playlist, PlaylistIn
+from utils.redis_client import get_cache, set_cache, delete_pattern
+from utils.redis_client import r  # 导入 Redis 连接对象
 from sqlalchemy.orm import Session, joinedload
 from models.user import User
 
@@ -23,6 +25,7 @@ def create_playlist(playlist: PlaylistIn,
     )
     db.add(new_playlist)
     db.commit()
+    delete_pattern("playlists:page:*")
     db.refresh(new_playlist)
     return {"message": "歌单创建成功", 
             "playlist_id": new_playlist.id, 
@@ -38,8 +41,18 @@ def create_playlist(playlist: PlaylistIn,
 @playlist_router.post("/view_all")
 def get_all_playlists(pagination: PaginationParams = Depends(get_pagination),
                       db: Session = Depends(get_db)):
+    # 先尝试从 Redis 缓存获取数据
+    cache_key = f"playlists:page:{pagination.page}:size:{pagination.page_size}"
+    cached_data = get_cache(cache_key)
+    if cached_data:
+        return cached_data
+
     #分页查询，按照收藏数降序排序，每页显示12条数据
-    playlists = db.query(Playlist).options(joinedload(Playlist.songs)).order_by(Playlist.playlist_cllect_num.desc()).offset((pagination.page-1)*pagination.page_size).limit(pagination.page_size).all()
+    playlists = db.query(Playlist)\
+                  .options(joinedload(Playlist.songs))\
+                  .order_by(Playlist.playlist_cllect_num.desc())\
+                  .offset((pagination.page-1)*pagination.page_size)\
+                  .limit(pagination.page_size).all()
     result = []
     for playlist in playlists:
         songs_data = [{
@@ -61,6 +74,9 @@ def get_all_playlists(pagination: PaginationParams = Depends(get_pagination),
                 "songs_count": len(songs_data)
             }
         })
+
+    set_cache(cache_key, result, expire=300)  # 缓存数据，设置过期时间为5分钟
+
     return result
 
 
@@ -87,7 +103,7 @@ def search_playlist(playlist_name: str,
                 "id": playlist.id,
                 "name": playlist.playlist_name,
                 "creater_id": playlist.playlist_creater,
-                "created_at": playlist.created_at,
+                "created_at": str(playlist.created_at),
                 "collect_num": playlist.playlist_cllect_num,
                 "songs_count": len(songs_data)
             }
@@ -98,6 +114,12 @@ def search_playlist(playlist_name: str,
 @playlist_router.post("/view_single/{playlist_id}")
 def get_playlist(playlist_id: int,
                  db: Session = Depends(get_db)):
+    # Redis
+    cache_key = f"playlist:{playlist_id}"
+    cached_data = get_cache(cache_key)
+    if cached_data:
+        return cached_data
+    
     playlist = db.query(Playlist).options(joinedload(Playlist.songs)).filter_by(id=playlist_id).first()
     if not playlist:
         raise HTTPException(status_code=404, detail="歌单不存在")
@@ -110,13 +132,13 @@ def get_playlist(playlist_id: int,
         }
         for song in playlist.songs  #遍历关系对象
     ]
-    return {
+    result = {
         "playlist": {
             "id": playlist.id,
             "name": playlist.playlist_name,
             "creater_id": playlist.playlist_creater,
-            "created_at": playlist.created_at,
-            "updated_at": playlist.updated_at,
+            "created_at": str(playlist.created_at),
+            "updated_at": str(playlist.updated_at),
             "collect_num": playlist.playlist_cllect_num,
             "introduction": playlist.playlist_introduction,
             "cover_url": playlist.playlist_cover_url,
@@ -124,7 +146,8 @@ def get_playlist(playlist_id: int,
             "songs_count": len(songs_data)
         }
     }
-
+    set_cache(cache_key, result, expire=300)
+    return result
 #收藏歌单（权限：普通用户）
 @playlist_router.post("/collect/{playlist_id}")
 def collect_playlist(playlist_id: int,
@@ -153,6 +176,8 @@ def delete_playlist(playlist_id: int,
         raise HTTPException(status_code=404, detail="歌单不存在")
     db.delete(playlist)
     db.commit()
+    delete_pattern("playlists:page:*")
+    delete_pattern(f"playlist:{playlist_id}")
     return {"message": "歌单删除成功"}
 
 #修改歌单信息（权限：歌单创建者或管理员）
@@ -168,6 +193,9 @@ def update_playlist(playlist: PlaylistIn,
             setattr(playlist_obj, field, value)
             update_fields.append(field)
     db.commit()
+    delete_pattern("playlists:page:*")
+    r.delete(f"playlist:{playlist_obj.id}") # 只删除当前歌单的缓存
+    delete_pattern(f"playlist:{playlist_obj.id}")
     return {
         "message": "歌单更新成功",
         "playlist_id": playlist_obj.id,
