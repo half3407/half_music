@@ -7,7 +7,7 @@ from models.playlist import Playlist
 from utils.token import generate_jwt_token
 from deps.permissions import require_user_self_or_admin
 from models.user import User, UserIn
-import hashlib
+from utils.security import hash_password, verify_password
 
 
 user_router = APIRouter(prefix="/users", tags=["用户管理"])
@@ -20,14 +20,12 @@ def register_user(user_in: UserIn,
     judg_user = db.query(User).filter_by(username=user_in.username).first()
     if judg_user:
         raise HTTPException(status_code=400, detail="用户名已存在")
-    
-    user_in_hash = hashlib.md5()
-    user_in_hash.update(user_in.password.encode('utf-8'))
 
     new_user = User(
         username=user_in.username,
-        password_hash=user_in_hash.hexdigest(),
-        role=user_in.role
+        password_hash=hash_password(user_in.password),
+        # 把 role 写死成 "user"
+        role="user"
     )
     db.add(new_user)
     try:
@@ -41,17 +39,11 @@ def register_user(user_in: UserIn,
 # 用户登录
 @user_router.post("/login")
 def login_user(user_in: UserIn, db: Session = Depends(get_db)):
-    judg_user = (
-        db.query(User)
-        .filter_by(
-            username=user_in.username, 
-            password_hash=hashlib.md5(user_in.password.encode('utf-8')).hexdigest()
-            )
-        .first()
-    )
-    if not judg_user:
+    # 先查出user_name，再单独校验密码。
+    judg_user = db.query(User).filter_by(username=user_in.username).first()
+    if not judg_user or not verify_password(user_in.password, judg_user.password_hash):
         raise HTTPException(status_code=401, detail="用户名或密码错误")
-    db.commit()
+    
     access_token = generate_jwt_token(judg_user.id, judg_user.role)
     return {"access_token": access_token,
              "token_type": "bearer",
@@ -101,7 +93,14 @@ def view_single_user(user_id: int,
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="用户不存在")
-    return {"user": user}
+    return {"user": {
+        "id": user.id,
+        "username": user.username,
+        "role": user.role,
+        "collected_playlists": user.collected_playlists,
+        "created_at": user.created_at,
+        "updated_at": user.updated_at,
+    }}
 
 
 #修改用户信息（权限：用户本人或管理员）
@@ -115,10 +114,8 @@ def update_user(user_id: int,
         raise HTTPException(status_code=404, detail="用户不存在")
     #改用户名
     user.username = user_in.username
-    #改密码
-    user_in_hash = hashlib.md5()
-    user_in_hash.update(user_in.password.encode('utf-8'))
-    user.password_hash = user_in_hash.hexdigest()
+    if user_in.password:
+        user.password_hash = hash_password(user_in.password)
     db.commit()
     return {"message": "用户信息更新成功"}
 
