@@ -4,11 +4,13 @@
 
 ## ✨ 功能特性
 
-- **用户系统**：注册、登录，基于 JWT 的身份认证，bcrypt 密码加密，普通用户 / 管理员角色权限控制
+- **用户系统**：注册、登录，基于 JWT 的身份认证，bcrypt 密码加密，普通用户 / 管理员角色权限控制；注册通过数据库唯一约束 + `IntegrityError` 回滚兜底，避免并发下重复用户名
 - **歌曲管理**：歌曲的增删改查、按歌名 / 歌手模糊搜索（创建、修改、删除需管理员权限）
 - **歌单管理**：创建、修改、删除歌单，歌单收藏，向歌单中添加 / 移除歌曲，按收藏数排序
 - **评论功能**：对歌曲发表评论、查看与删除评论（评论不可修改）
 - **文件上传**：歌曲封面、音频文件、用户头像上传，带类型与大小校验，静态文件服务
+- **缓存加速**：基于 Redis 的 cache-aside 缓存，列表 / 详情接口带 TTL 缓存，写操作按 key pattern 精准失效
+- **容器化部署**：提供 Dockerfile 与 docker-compose，一键拉起「应用 + Redis」，数据卷持久化
 - **通用能力**：统一分页、软删除（`deleted_at`）、自动时间戳（`created_at` / `updated_at`）、日志轮转、数据库迁移
 
 ## 🛠 技术栈
@@ -19,7 +21,9 @@
 | ASGI 服务器 | Uvicorn |
 | ORM | SQLAlchemy 2.0 |
 | 数据库 | SQLite |
+| 缓存 | Redis |
 | 数据迁移 | Alembic |
+| 容器化 | Docker / Docker Compose |
 | 配置管理 | pydantic-settings |
 | 认证 | PyJWT (HS256) |
 | 密码加密 | bcrypt |
@@ -35,6 +39,9 @@ half_music/
 ├── log.py                  # loguru 日志初始化
 ├── alembic.ini             # Alembic 配置
 ├── .env.template           # 环境变量模板
+├── requirements.txt        # Python 依赖清单
+├── Dockerfile              # 应用镜像构建
+├── docker-compose.yml      # 应用 + Redis 编排
 ├── controls/               # 路由控制层（业务接口）
 │   ├── ctl_user.py         #   用户管理
 │   ├── ctl_song.py         #   歌曲管理
@@ -57,7 +64,8 @@ half_music/
 │   └── db_update.py        #   数据库更新脚本
 ├── utils/
 │   ├── token.py            #   JWT 生成与解析
-│   └── security.py         #   bcrypt 密码哈希与校验
+│   ├── security.py         #   bcrypt 密码哈希与校验
+│   └── redis_client.py     #   Redis 连接池与缓存读写 / 失效工具
 ├── alembic/                # 数据库迁移脚本
 └── tests/                  # 测试用例
     ├── conftest.py         #   测试夹具（内存数据库、token）
@@ -69,14 +77,17 @@ half_music/
 
 ## 🚀 快速开始
 
+> 推荐使用 [Docker 部署](#-docker-部署) 一键拉起「应用 + Redis」；若想本地直接运行，按下方步骤操作。
+
 ### 1. 环境要求
 
-- Python 3.14+
+- Python 3.11+
+- Redis（本地运行缓存功能时需要，可用 `docker run -p 6379:6379 redis` 快速启动）
 
 ### 2. 安装依赖
 
 ```bash
-pip install fastapi uvicorn sqlalchemy alembic pydantic-settings pyjwt bcrypt loguru python-multipart pytest
+pip install -r requirements.txt
 ```
 
 ### 3. 配置环境变量
@@ -100,6 +111,8 @@ cp .env.template .env
 | `UPLOAD_DIR` | 文件上传根目录 | `/py_codes/half_music_upload/` |
 | `MAX_UPLOAD_SIZE` | 单文件最大字节数 | `20971520`（20 MB） |
 | `STATIC_URL_PREFIX` | 静态文件挂载前缀 | `/static` |
+| `REDIS_HOST` | Redis 主机地址 | `localhost`（容器内为 `redis`） |
+| `REDIS_PORT` | Redis 端口 | `6379` |
 | `MUSIC_LOG_*` | 日志路径 / 等级 / 轮转 / 保留天数 | 见配置 |
 | `PAGE_*` | 分页默认值 / 上下限 | 见配置 |
 
@@ -182,6 +195,36 @@ python main.py
 
 Token 使用 HS256 算法签名，载荷包含 `user_id`、`role` 和过期时间 `exp`，默认有效期 2 小时。
 
+## ⚡ 缓存策略
+
+读多写少的列表 / 详情接口接入 Redis，采用经典的 **cache-aside（旁路缓存）** 模式：
+
+- **读**：先查缓存命中则直接返回；未命中则查数据库、写回缓存并设置 TTL（默认 300 秒）。
+- **写**：歌曲 / 歌单的增删改会按 key pattern 精准失效相关缓存（如 `delete_pattern("song:page:*")`），保证数据一致性，避免脏读。
+- **Key 设计**：以业务维度 + 分页参数组织，例如 `songs:page:{page}:size:{size}`、`playlist:{id}`。
+
+缓存读写与失效封装在 [utils/redis_client.py](utils/redis_client.py)，对外暴露 `get_cache` / `set_cache` / `delete_pattern`，并通过连接池复用连接。值以 JSON 序列化存储。
+
+## 🐳 Docker 部署
+
+项目提供 [Dockerfile](Dockerfile) 与 [docker-compose.yml](docker-compose.yml)，一条命令即可拉起「应用 + Redis」：
+
+```bash
+docker compose up -d --build
+```
+
+启动后同样通过 http://localhost:8000/docs 访问。compose 编排说明：
+
+- `app` 服务由本地 Dockerfile 构建，通过环境变量 `REDIS_HOST=redis` 连接同网络下的 Redis 容器。
+- `redis` 服务使用官方镜像，与 `app` 处于同一 bridge 网络 `music_net`。
+- 上传目录与 SQLite 数据库通过数据卷（`./upload`、`./data`）挂载到容器外，实现持久化。
+
+停止并清理：
+
+```bash
+docker compose down
+```
+
 ## 🗄 数据库迁移
 
 项目使用 Alembic 管理数据库结构变更：
@@ -204,7 +247,7 @@ alembic upgrade head
 pytest
 ```
 
-测试覆盖用户、歌曲、歌单及并发场景（见 [tests/](tests/)）。
+测试覆盖用户、歌曲、歌单的核心接口；[tests/test_concurrent.py](tests/test_concurrent.py) 用线程池模拟同一用户名并发注册，验证唯一约束下的兜底逻辑（见 [tests/](tests/)）。
 
 ## 📝 说明
 

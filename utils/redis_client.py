@@ -1,6 +1,8 @@
 import redis
+import os
 import json
 from typing import Any, Optional
+
 
 # 创建一个连接池，全局复用
 redis_pool = redis.ConnectionPool(
@@ -10,8 +12,9 @@ redis_pool = redis.ConnectionPool(
     decode_responses=True   # Redis 直接返回字符串
 )
 
-# 从这里获取连接
-r = redis.Redis(connection_pool=redis_pool)
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
+r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
 
 def get_cache(key: str) -> Optional[Any]:
     # 从缓存取数据，自动 JSON 解析
