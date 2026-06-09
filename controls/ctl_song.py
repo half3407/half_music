@@ -42,8 +42,8 @@ def delete_song(song_id: int,
     db.delete(song)
     db.commit()
     delete_pattern("song:page:*")
-    delete_pattern("playlists:page:*")
-    r.delete(f"playlist:{song_id}") # 只删除当前歌单的缓存
+    delete_pattern("playlists:*")   # 清除所有歌单列表缓存
+    delete_pattern("playlist:*")    # 清除所有歌单详情缓存
     return {"message": "歌曲删除成功"}
 
 #修改歌曲信息（权限：管理员）
@@ -66,8 +66,8 @@ def update_song(song_id: int,
     db.commit()
     delete_pattern("playlists:page:*")
     delete_pattern("song:page:*")
-    r.delete(f"playlist:{song_to_update.id}") # 只删除当前歌单的缓存
-    delete_pattern(f"playlist:{song_to_update.id}")
+    delete_pattern("playlists:*")
+    delete_pattern("playlist:*")
     return {"message": "歌曲信息修改成功"}
 
 
@@ -75,7 +75,7 @@ def update_song(song_id: int,
 @song_router.post("/view_all")
 def view_all_songs(pagination: PaginationParams = Depends(get_pagination),
                     db: Session = Depends(get_db)):
-    cache_key = f"songs:page:{pagination.page}"
+    cache_key = f"songs:page:{pagination.page}:size:{pagination.page_size}"
     cached_date = get_cache(cache_key)
     if cached_date:
         return cached_date
@@ -156,7 +156,6 @@ def add_song_to_playlist(song_id: int,
     # 因为歌曲信息改变了，可能会影响歌单详情页的缓存，所以删除相关缓存
     delete_pattern("playlists:page:*")
     r.delete(f"playlist:{playlist.id}") # 只删除当前歌单的缓存
-    delete_pattern(f"playlist:{playlist.id}")
     return {"message": "歌曲添加到歌单成功", 
             "playlist_id": playlist.id, 
             "song_id": song.id,
@@ -183,5 +182,4 @@ def delete_song_from_playlist(song_id: int,
     # 因为歌曲信息改变了，可能会影响歌单详情页的缓存，所以删除相关缓存
     delete_pattern("playlists:page:*")
     r.delete(f"playlist:{playlist.id}") # 只删除当前歌单的缓存
-    delete_pattern(f"playlist:{playlist_id}")
     return {"message": "歌曲从歌单移除成功", "playlist_id": playlist.id, "song_id": song.id}    

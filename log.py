@@ -23,5 +23,5 @@ def init_logger(log_file: str = "app.log", level: str = LOG_LEVEL):
 
     logger.info(f"日志器初始化... 日志文件 {log_file} 当前日志等级 {level}")
     logger.info(
-        f"日志器配置：轮转大小 {os.environ.get("MUSIC_LOG_ROTATION_SIZE", "5 MB")}，保留天数 {5} 天，旧日志压缩为 zip 格式"
+        f"日志器配置：轮转大小 {os.environ.get('MUSIC_LOG_ROTATION_SIZE', '5 MB')}，保留天数 {5} 天，旧日志压缩为 zip 格式"
     )
